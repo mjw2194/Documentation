@@ -1,0 +1,61 @@
+```{r Set Working Directory and Load Required Files & Packages }
+setwd("C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles")
+FileName<-"DerivativesCrossSell.csv"
+source("./DataWrangling.R")
+library(rpart,quietly=TRUE)
+```
+
+```{r Load Data}
+Data<-read.csv(file=FileName)
+Data[is.na(Data)]<-0
+```
+
+```{r Check Data Structure}
+str(Data)
+r<-lapply(X=Data[,7:14],FUN=table,useNA="ifany")
+r
+```
+
+```{r Recode Rankings}
+Data<-RecodeRank(DataFrame = Data,SplittingVariable =3,Variable = 8,ReplacementValue = 11)
+Data<-RecodeRank(DataFrame = Data,SplittingVariable =3,Variable = 9,ReplacementValue = 9)
+Data<-RecodeRank(DataFrame = Data,SplittingVariable =3,Variable = 10,ReplacementValue = 6)
+Data<-RecodeRank(DataFrame = Data,SplittingVariable =3,Variable = 11,ReplacementValue = 7)
+Data<-RecodeRank(DataFrame = Data,SplittingVariable =3,Variable = 12,ReplacementValue = 6)
+
+r<-lapply(X=Data[,7:14],FUN=table,useNA="ifany")
+r
+```
+
+```{r Recode Picks}
+Data<-RecodePickByColumn(DataFrame = Data,SplittingVariable = 3,Variables = c(7,13,14))
+
+r<-lapply(X=Data[,7:14],FUN=table,useNA="ifany")
+r
+```
+
+
+```{r Remove Invalid UK/European Flow Observations}
+Data<-Data[!is.na(Data[,7]),]
+Data<-Data[,1:12]
+r<-lapply(X=Data[,7:12],FUN=table,useNA="ifany")
+r
+```
+
+
+```{r Create Decision Tree}
+CrossSellTree<-rpart(formula = Data[,7]~Data[,8]+Data[,9]+Data[,10]+Data[,11]+Data[,12],data = Data,method = "class")
+
+plot(CrossSellTree)
+text(CrossSellTree)
+summary(CrossSellTree)
+```
+
+
+```{r Create Logistic Regression}
+CrossSellLogisticFit<-glm(formula = Data[,7]~Data[,8]+Data[,9]+Data[,10]+Data[,11]+Data[,12],family = "binomial",data = Data)
+OddsRatio<-exp(CrossSellLogisticFit$coefficients)
+OddsRatio
+anova(CrossSellLogisticFit)
+
+

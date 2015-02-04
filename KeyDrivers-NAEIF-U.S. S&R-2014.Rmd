@@ -1,0 +1,623 @@
+Key Driver Analysis
+========================================================
+North American Investors-U.S. Equities-Sales & Research-2014
+--------------------------------------------------------
+### Summary
+This file documents the process used to model the key drivers of recognition for brokers' equity research and advisory franchises. Greenwich Associates conducts interviews with buy-side portfolio managers to assess the pecieved quality of brokers that they use and are familiar with. The interviews are conducted in person and over the phone by trained interviewers contracted by Greenwich. This specific data set reflects the assessment by portfolio managers of the brokers they use for U.S. equity research and advisory services including sales, coroprate access and research. The portfolio managers are located throughout North America. This study is part of a larger study where Greenwich conducts interviews with portfolio managers located in the North America and assess their perceptions of the brokers they use for Canadian, European, Asian, Japanese, Australian, Latin American & CEEMEA equities.
+
+
+## Contents
+### Processing Data
+#### Getting the Raw Data
+#### Loading Data
+#### Removing Problematic Observations
+#### Recoding Variables
+#### Validating Variables
+#### Writting a New Data File
+### Modeling
+### Code Book
+#### Function Definitions
+#### Original Variable Descriptions
+#### Final Variable Descriptions
+
+===========================================================
+
+
+
+Processing Data
+===========================================================
+### Getting the Raw Data
+The raw data was obtained via the SPSS Report using Business Objects <Version>. <OUtline process for running SPSS Reports and appending several columns for year, facility, program, etc. >
+
+### Loading Data
+Set the appropriate working directory, define the name of the file and load the functions in the "DataWrangling.R" file. In this case, I set the working directory to be the location of the data files. Ideally, we would want to dermine the data type (integer, numeric, factor, character, etc.) for each variable ahead of time via the "read.csv()" function's colClasses argument. Doing so will make it eaiser and faster for R to load the data. However, due to the fact that some variables include character strings (e.g., "#MULTIVALUE", etc.) Defining those variables as numeric usually causes R to throw an error. Instead, we will define the variable types after loading the data. WARNING: This introduces some subtle, but significant issues. R will code some variables as a factor (e.g., overall research/advisory rank, etc.). Special care has to be taken when converting the factor to a numeric or integer variable (see the Recodeding Variables section). Lastly, I've created serveral functions that make data manipulations eaiser. The functions are saved in the "DataWrangling.R" file, which needs to be loaded into R via the source() function.
+
+
+```{r LoadingData_SetValues,}
+setwd("C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles")
+FileName<-"PMGR-All Features 4.23.14.csv"
+source("./DataWrangling.R")
+library(relaimpo,quietly=TRUE)
+```
+
+Next, we load the data into R using the read.csv() function. If the file is in annother format, a different function will be needed (e.g, read.frame(), etc). I've also set all NA's equal to 0's using the is.na() function. Later, we will need to convert some 0's back to NAs (e.g., Pick 2/3's). We will also need to recode some variables as negatives (e.g., negative-oriented pick 2/3's and ranking questions). Becuase there are so many variables, I've chosen not to look at the structure of the data frame using the str() function. Instead, I will document the some properties of the data including the original and final number of observations, the the column number associated with each variable and orignal and final data type of each variable. I will also include a description of each variable. The resulting dataset is named "Data". 
+
+```{r LoadingData_Read,}
+Data<-read.csv(FileName,strip.white=TRUE)
+Data[is.na(Data)]<-0
+```
+
+### Removing Problematic Observations
+This is the first point where we will use functions stored in the "DataWrangling.R" file. The RemoveRows() function removes problematic observations. (e.g., rows with BrokerIDs equal to -2 or -10,000, #MULTIVALUE and 99). This function requires a list of columns to check as well as the values that should be removed. RemoveRows() returns a list with two elements. The first element Data.RmRows is the edited data frame. The second element NumRows records the number of observations after checking each column for the values provided.
+
+```{r LoadingData_RemoveErrors,}
+Edited<-RemoveRows(DataFrame=Data,Columns=c(9,57,82,83),ColumnNames=c("Column 9","Column 57", "Column 82", "Column 83"),Values=c(-2,-10000, 99,"#MULTIVALUE"))
+Edited$NumRows
+```
+
+
+## Recoding Variables
+
+### Recoding Market Trend Variables
+
+### Recoding Competitive Variables
+
+#### Recoding Factor Variables
+First, we need to change the data type of a few variables. WARNING: Variables representing ranking/penetration questions seem to be the most problematic. As mentioned earlier, some variables are coded as factors by R when we write data using the read.csv() function. This may not be appropriate. A common case is the ranking/penetration questions. Because the ranking/penetration variabes contain "#MULTIVALUES", R codes them as factors instead of integers. 
+
+Recoding a variable from a factor to an integer is tricky. R will return the integer value of the level associated with each datapoint. For example, if "#MULTIVALUE" is the first element of a varaible to be loaded, "MULTIVALUE" is the first level of the factor and is treated like the integer 1. If "10" is the second element of a variable to be loaded into R, "10" is the second level of the factor and is treated like the integer 2. 
+
+The below code converts the levels to integers and then sets the value of the variable to be equatl to the level label. I've also recoded blanks to 0's , which we will recoded later. Next, we have to recode the data so that a #1 ranking is larger than a #10 ranking and any erroneous values are removed or recoded as NA. the RecodeRank() function recodes the data correspondign to the ranking/penetration questions. Lastly, I printed the finalized data frame afterwards so the user can see what the end results are. The data frame is obtained from the list of objects returned by the RemoveRows() function. The edited data frame is named "Data.RmRows".
+
+
+```{r Recode Factors as Integers}
+Data.RmRows<-Edited$Data.RmRows
+#Data.RmRows[1:10, c(8,10,57,82,83)]
+Data.RmRows[,57]<-as.integer(levels(Data.RmRows[,57]))[as.integer(Data.RmRows[,57])]
+#Data.RmRows[,82]<-as.integer(levels(Data.RmRows[,82]))[as.integer(Data.RmRows[,82])]
+Data.RmRows[,83]<-as.integer(levels(Data.RmRows[,83]))[as.integer(Data.RmRows[,83])]
+Data.RmRows[is.na(Data.RmRows)]<-0
+Data.RmRows[1:10, c(7,9,57,58,59,64,72,82,83,88)]
+
+```
+
+
+```{r Remove Observations with Brokers who Are Not on the Scalar List}
+ValidBrokerIDs<-c(303,469,641,804,954,967,1058,1197,1505,1763,1804,1824,2049,2230,2334,2543,2628,2654,2697,2772,2951,3152,4836,4839)
+ValidBrokers<-Data.RmRows[,9] %in% ValidBrokerIDs
+Data.RmRows<-Data.RmRows[ValidBrokers,]
+Data.RmRows[1:10, c(7,9,57,58,59,64,72,82,83,88)]
+Edited$NumRows<-rbind(Edited$NumRows,data.frame(ColName="ValidBrokerIDs",NumObs=nrow(Data.RmRows)))
+Edited$NumRows
+```
+
+
+```{r Recode Scalars as Categorical}
+
+Data.RmRows[Data.RmRows[,58]<4 & Data.RmRows[,58]>0,58]<--1
+Data.RmRows[Data.RmRows[,58]>=4,58]<-1
+
+Data.RmRows[Data.RmRows[,72]<4 & Data.RmRows[,72]>0,72]<--1
+Data.RmRows[Data.RmRows[,72]>=4,72]<-1
+```
+
+```{r Recode Blank Scalar Observations as NA}
+Data.RmRows[Data.RmRows[,58]==0,58]<-NA
+Data.RmRows[Data.RmRows[,72]==0,72]<-NA
+
+Data.RmRows[1:10, c(7,9,57,58,59,64,72,82,83,88)]
+```
+
+
+```{r Recode Research/Advisory Ranking so 1st > 10th}
+Data.RmRows<-RecodeRank(DataFrame=Data.RmRows,SplittingVariable=7,Variable=57,ReplacementValue=16,RemoveRows=TRUE)
+
+Data.RmRows[1:10, c(7,9,57,58,59,64,72,82,83,88)]
+```
+
+```{r Recode Corporate Access Rankings as Categorical}
+Data.RmRows[Data.RmRows[,82]<=4 & Data.RmRows[,82]>0,82]<-1
+Data.RmRows[Data.RmRows[,82]>4,82]<-2
+
+Data.RmRows[Data.RmRows[,83]<=2 & Data.RmRows[,83]>0,83]<-1
+Data.RmRows[Data.RmRows[,83]>2,83]<-2
+
+Data.RmRows<-RecodeRank(DataFrame=Data.RmRows,SplittingVariable=7,Variable=82,ReplacementValue=2,RemoveRows=FALSE)
+
+Data.RmRows<-RecodeRank(DataFrame=Data.RmRows,SplittingVariable=7,Variable=83,ReplacementValue=2,RemoveRows=FALSE)
+
+
+Data.RmRows[1:10, c(7,9,57,58,59,64,72,82,83,88)]
+```
+
+
+```{r Recode Corporate Access Rankings so 1st >10th}
+
+#SKIP if making Corporate Access Rankings Categorical!
+Data.RmRows<-RecodeRank(DataFrame=Data.RmRows,SplittingVariable=7,Variable=82,ReplacementValue=11,RemoveRows=FALSE)
+
+Data.RmRows<-RecodeRank(DataFrame=Data.RmRows,SplittingVariable=7,Variable=83,ReplacementValue=6,RemoveRows=FALSE)
+Data.RmRows[1:10, c(7,9,57,58,59,64,72,82,83,88)]
+
+```
+
+
+#### Recoding Pick 2/3's
+Pick 2/3 values are originally 1 or NA. We need to try to distinguish whether or not the NA indicates that the portfolio manager has a view, or if he/she did not answer the question. If the portfolio manager has a view, we should treat the NA as 0. If they he/she did not answer the question, we should leave the NA as is. When determining if the portfolio manager has a view, we can determine if he/she cited any brokers for that particular question. We can also determine if he/she answered any question within a block of similar questions. The functions below, stored in the "DataWranging.R" file, take the edited data frame and recode observations as NA's based on a set of conditions. The results are stored in a list named "Data.Recoded", which has elements "Columns", "Groups" and "Mixed". Note that a 1 in a negative-oriented questions like "Which 3 or 4 firms had disrutptive sales professional turnover?" are recoded to -1.
+
+```{r Recoding Negative Picks so Mentions are Coded as -1}
+Data.RmRows[,64]<--Data.RmRows[,64]
+Data.RmRows[,88]<--Data.RmRows[,88]
+
+Data.RmRows[1:10, c(7,9,57,58,59,64,72,82,83,88)]
+```
+
+```{r Recode Positive Picks via 3 different options}
+Data.Recoded<-list(Columns="",Groups="",Mixed="")
+
+Data.Recoded$Columns<-RecodePickByColumn(DataFrame=Data.RmRows,SplittingVariable=7,Variables=c(59:65,66:71,73:81,84:88))
+Data.Recoded$Groups<-RecodePickByGroups(DataFrame=Data.RmRows,SplittingVariable=7,VariableGroups=list(c(59:65, 66:71,73:81, 84:88)))
+Data.Recoded$Mixed<-RecodePickByMixed(DataFrame=Data.RmRows,SplittingVariable=7,VariableColumns=c(59:65,73:81,84:88), VariableGroups=list(c(66:71)))
+```
+
+## Validating Variables
+Most of the data validation will envolve checking data market trend variables...
+
+### Validating Market Trends Data
+
+### Validating Competitive Data
+So far we've collected the raw data, loaded that data into R, removed troublesome observations and recoded variables. Now we will explore the edited data to help us determine how to model the data. Particularly, we want to see what treatment of the pick 2/3 data is most correlated with the dependent varaible-research/advisory rank. The below code creates a separate data frame for each method of recoding pick 2/3 data (e.g., by column, group or both column and group). See the Function Description section for more details. The ComputeCorrelation function will calculate the correlation of each independent variable with the dependent variable. I've added the tags "ByCol", "ByGroup" and "Mixed" so we can see which method of recoding the pick 2/3 variables is most correlated with the dependent variable.  Then I used the rbind() function to combine each data frame for comparison purposes. Lastly, I use the lattice package's xyplot() function to visualize the differences between each treatment.
+
+```{r Check Frequencies}
+
+r<-lapply(X=Data.Recoded$Columns[,57:88],FUN=table,useNA="ifany")
+
+r[[1]]
+r[[2]]
+r[[3]]
+r[[8]]
+r[[16]]
+r[[26]]
+r[[27]]
+r[[32]]
+```
+
+
+```{r Check correlations of research/advisory ranking and dependent variables for each method of recoding picks}
+Correl<-list(ByCol="",ByGroup="",Mixed="")
+Correl$ByCol<-ComputeCorrelation(DataFrame=Data.Recoded$Columns,DependentVariable=57, Question=names(Data.Recoded$Columns[,c(58:64,66:71,72:81,82:83,84:88)]))
+Correl$ByCol$Type<-"ByCol"
+
+Correl$ByGroup<-ComputeCorrelation(DataFrame=Data.Recoded$Groups,DependentVariable=57, Question=names(Data.Recoded$Groups[,c(58:64,66:71,72:81,82:83,84:88)]))
+Correl$ByGroup$Type<-"ByGroup"
+
+Correl$Mixed<-ComputeCorrelation(DataFrame=Data.Recoded$Mixed,DependentVariable=57, Question=names(Data.Recoded$Mixed[,c(58:64,66:71,72:81,82:83,84:88)]))
+Correl$Mixed$Type<-"Mixed"
+
+Correlations<-data.frame(rbind(Correl$ByCol, Correl$ByGroup, Correl$Mixed))
+#Correlations$Type<-as.factor(Correlations$Type)
+library(lattice)
+xyplot(Correlations$Correlations~Correlations$Question|Correlations$Type, col="Blue",pch=16)
+
+sapply(split(x=Correlations$Correlations,f=Correlations$Type),mean)
+```
+
+
+
+
+## Writting a New Data File
+Now that we have removed erroneous observations, recoded "pick 2/3" values as NA and validated variables, we can create a new file that can be used for future use. 
+
+
+## Modeling
+Conceptually, we will be creating a set of linear regressions. We will be  using the relaimpo package's relimp() function, which creates a model using every combination of variables. For example, if there are 5 independent variables, the relimpo() function will create 120 linear regressions. If there are 10 independent variables, the relimpo() function will create over 360,000 linear regressions. Adding variables to the model significantly increases the processing time and running the relimpo() funciton with more than <<##>> variables is not recommended.
+
+After creating all possible combinations of linear regressions, the relimp() function returns the average increase in the R squared values for each variable. If there are 5 independent variables, 16 linear regressions will be created that include the 5th independent variable. The average increase in R squared of each of the 16 linear regressions is the output of the relimp() function corresponding to the 5th variable. The relaimpo() function requires that the data frame have no missing values. As a result, we will create and use the covarience matrix.
+
+### Creating the Covarience Matrix
+
+```{r Create Covariance Matricies-Including Scalars}
+CovMatrices=list(AllVariables=cov(Data.Recoded$Columns[,c(57:64,66:88)], use="pairwise"),Sales=cov(Data.Recoded$Columns[,c(57:64,66:71)], use="pairwise"),Research=cov(Data.Recoded$Columns[,c(57,72:81)], use="pairwise"),CorporateAccess=cov(Data.Recoded$Columns[,c(57,82:88)], use="pairwise"))
+
+
+RelativeImpacts<-mapply(FUN=calc.relimp,object=list(CovMatrices$Sales,CovMatrices$Research,CovMatrices$CorporateAccess),type="lmg",rela=TRUE)
+
+plot(RelativeImpacts[[1]])
+plot(RelativeImpacts[[2]])
+plot(RelativeImpacts[[3]])
+
+SalesQuestions<-names(RelativeImpacts[[1]]@lmg)
+ResearchQuestions<-names(RelativeImpacts[[2]]@lmg)
+CorporateAccessQuestions<-names(RelativeImpacts[[3]]@lmg)
+
+SalesImpacts<-data.frame(RelativeImpacts[[1]]@R2,SalesQuestions,RelativeImpacts[[1]]@lmg,row.names=NULL)
+
+ResearchImpacts<-data.frame(RelativeImpacts[[2]]@R2,ResearchQuestions,RelativeImpacts[[2]]@lmg,row.names=NULL)
+
+CorporateAccessImpacts<-data.frame(RelativeImpacts[[3]]@R2,CorporateAccessQuestions,RelativeImpacts[[3]]@lmg,row.names=NULL)
+
+colnames(SalesImpacts)<-c("R-Squared","Question","RelativeImpact")
+colnames(ResearchImpacts)<-c("R-Squared","Question","RelativeImpact")
+colnames(CorporateAccessImpacts)<-c("R-Squared","Question","RelativeImpact")
+
+write.csv(x=SalesImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Sales_BinaryScalar.csv")
+write.csv(x=ResearchImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Research_BinaryScalar.csv")
+write.csv(x=CorporateAccessImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Corp.Access_BinaryScalar.csv")
+
+```
+
+```{r Create Covariance Matricies-Excluding Scalars}
+CovMatricesNoScalars=list(AllVariables=cov(Data.Recoded$Columns[,c(57,59:64,66:71,73:88)], use="pairwise"),Sales=cov(Data.Recoded$Columns[,c(57,59:64,66:71)], use="pairwise"),Research=cov(Data.Recoded$Columns[,c(57,73:81)], use="pairwise"),CorporateAccess=cov(Data.Recoded$Columns[,c(57,82:88)], use="pairwise"))
+
+RelativeImpactsNoScalars<-mapply(FUN=calc.relimp,object=list(CovMatricesNoScalars$Sales,CovMatricesNoScalars$Research,CovMatricesNoScalars$CorporateAccess),type="lmg",rela=TRUE)
+
+plot(RelativeImpactsNoScalars[[1]])
+plot(RelativeImpactsNoScalars[[2]])
+plot(RelativeImpactsNoScalars[[3]])
+
+SalesQuestions<-names(RelativeImpactsNoScalars[[1]]@lmg)
+ResearchQuestions<-names(RelativeImpactsNoScalars[[2]]@lmg)
+CorporateAccessQuestions<-names(RelativeImpactsNoScalars[[3]]@lmg)
+
+SalesImpacts<-data.frame(RelativeImpactsNoScalars[[1]]@R2,SalesQuestions,RelativeImpactsNoScalars[[1]]@lmg,row.names=NULL)
+
+ResearchImpacts<-data.frame(RelativeImpactsNoScalars[[2]]@R2,ResearchQuestions,RelativeImpactsNoScalars[[2]]@lmg,row.names=NULL)
+
+CorporateAccessImpacts<-data.frame(RelativeImpactsNoScalars[[3]]@R2,CorporateAccessQuestions,RelativeImpactsNoScalars[[3]]@lmg,row.names=NULL)
+
+colnames(SalesImpacts)<-c("R-Squared","Question","RelativeImpact")
+colnames(ResearchImpacts)<-c("R-Squared","Question","RelativeImpact")
+colnames(CorporateAccessImpacts)<-c("R-Squared","Question","RelativeImpact")
+
+write.csv(x=SalesImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Sales_NoScalar10.9.14.csv")
+write.csv(x=ResearchImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Research_NoScalar10.9.14.csv")
+write.csv(x=CorporateAccessImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Corp.Access_NoScalar10.9.14.csv")
+
+```
+
+
+```{r Create Covariance Matricies-Excluding Scalars & Sector Sales Picks}
+CovMatricesNoScalarsOrSectorSales=list(AllVariables=cov(Data.Recoded$Columns[,c(57,59:64,73:88)], use="pairwise"),Sales=cov(Data.Recoded$Columns[,c(57,59:64)], use="pairwise"),Research=cov(Data.Recoded$Columns[,c(57,73:81)], use="pairwise"),CorporateAccess=cov(Data.Recoded$Columns[,c(57,82:88)], use="pairwise"))
+
+RelativeImpactsNoScalarsOrSector<-mapply(FUN=calc.relimp,object=list(CovMatricesNoScalarsOrSectorSales$Sales,CovMatricesNoScalarsOrSectorSales$Research,CovMatricesNoScalarsOrSectorSales$CorporateAccess),type="lmg",rela=TRUE)
+
+plot(RelativeImpactsNoScalarsOrSector[[1]])
+plot(RelativeImpactsNoScalarsOrSector[[2]])
+plot(RelativeImpactsNoScalarsOrSector[[3]])
+
+SalesQuestions<-names(RelativeImpactsNoScalarsOrSector[[1]]@lmg)
+ResearchQuestions<-names(RelativeImpactsNoScalarsOrSector[[2]]@lmg)
+CorporateAccessQuestions<-names(RelativeImpactsNoScalarsOrSector[[3]]@lmg)
+
+SalesImpacts<-data.frame(RelativeImpactsNoScalarsOrSector[[1]]@R2,SalesQuestions,RelativeImpactsNoScalarsOrSector[[1]]@lmg,row.names=NULL)
+
+ResearchImpacts<-data.frame(RelativeImpactsNoScalarsOrSector[[2]]@R2,ResearchQuestions,RelativeImpactsNoScalarsOrSector[[2]]@lmg,row.names=NULL)
+
+CorporateAccessImpacts<-data.frame(RelativeImpactsNoScalarsOrSector[[3]]@R2,CorporateAccessQuestions,RelativeImpactsNoScalarsOrSector[[3]]@lmg,row.names=NULL)
+
+colnames(SalesImpacts)<-c("R-Squared","Question","RelativeImpact")
+colnames(ResearchImpacts)<-c("R-Squared","Question","RelativeImpact")
+colnames(CorporateAccessImpacts)<-c("R-Squared","Question","RelativeImpact")
+
+write.csv(x=SalesImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Sales_NoScalarOrSectorSales.csv")
+write.csv(x=ResearchImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Research_NoScalarOrSectorSales.csv")
+write.csv(x=CorporateAccessImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Corp.Access_NoScalarOrSectorSales.csv")
+
+```
+
+
+
+
+```{r Create Covarience Matricies-Excluding Scalars and Corporate Access}
+CovMaticesNoScalarsCorpAcc=list(AllVariables=cov(Data.Recoded$Columns[,c(57,59:64,66:71,73:81, 84:88)], use="pairwise"),Sales=cov(Data.Recoded$Columns[,c(57,59:64,66:71)], use="pairwise"),Research=cov(Data.Recoded$Columns[,c(57,73:81)], use="pairwise"),CorporateAccess=cov(Data.Recoded$Columns[,c(57,84:88)], use="pairwise"))
+```
+
+
+```{r Create Model-Scalars as Independent Variabls & No Picks}
+CovMatricesScalarsOnly=list(SalesScalar=cov(Data.Recoded$Columns[,c(57,58)],use="pairwise"),ResearchScalar=cov(Data.Recoded$Columns[,c(57,72)],use="pairwise"))
+
+SalesFit<-lm(formula = Data.Recoded$Columns[,57]~Data.Recoded$Columns[,58],data = Data.Recoded$Columns)
+ResearchFit<-lm(formula = Data.Recoded$Columns[,57]~Data.Recoded$Columns[,72],data = Data.Recoded$Columns)
+
+summary(SalesFit)
+summary(ResearchFit)
+```
+
+
+```{r Create Covariance Matricies-Scalars as Dependent Variable}
+CovMatricesScalarVSFactors=list(Sales=cov(Data.Recoded$Columns[,c(58:64, 66:71)], use="pairwise"),Research=cov(Data.Recoded$Columns[,c(72:81)], use="pairwise"),CorporateAccess=cov(Data.Recoded$Columns[,c(82,84:88)], use="pairwise"))
+
+RelativeImpactsScalarVSFactors<-mapply(FUN=calc.relimp,object=list(CovMatricesScalarVSFactors$Sales,CovMatricesScalarVSFactors$Research,CovMatricesScalarVSFactors$CorporateAccess),type="lmg",rela=TRUE)
+
+plot(RelativeImpactsScalarVSFactors[[1]])
+plot(RelativeImpactsScalarVSFactors[[2]])
+plot(RelativeImpactsScalarVSFactors[[3]])
+
+SalesQuestions<-names(RelativeImpactsScalarVSFactors[[1]]@lmg)
+ResearchQuestions<-names(RelativeImpactsScalarVSFactors[[2]]@lmg)
+CorporateAccessQuestions<-names(RelativeImpactsScalarVSFactors[[3]]@lmg)
+
+SalesImpacts<-data.frame(RelativeImpactsScalarVSFactors[[1]]@R2,SalesQuestions,RelativeImpactsScalarVSFactors[[1]]@lmg,row.names=NULL)
+
+ResearchImpacts<-data.frame(RelativeImpactsScalarVSFactors[[2]]@R2,ResearchQuestions,RelativeImpactsScalarVSFactors[[2]]@lmg,row.names=NULL)
+
+CorporateAccessImpacts<-data.frame(RelativeImpactsScalarVSFactors[[3]]@R2,CorporateAccessQuestions,RelativeImpactsScalarVSFactors[[3]]@lmg,row.names=NULL)
+
+colnames(SalesImpacts)<-c("R-Squared","Question","RelativeImpact")
+colnames(ResearchImpacts)<-c("R-Squared","Question","RelativeImpact")
+colnames(CorporateAccessImpacts)<-c("R-Squared","Question","RelativeImpact")
+
+write.csv(x=SalesImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/SalesScalarVSFactors.csv")
+write.csv(x=ResearchImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/ResearchVSFactors.csv")
+write.csv(x=CorporateAccessImpacts,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/Corp.AccessRankVSFactors.csv")
+```
+
+
+### Modeling
+Since there are quite a few variables, we decided to call the relimp() function on sub-sets of data corresponding to sales, research and corporate access questions. We also combined the sales, research and corporate access questions into separate groups using the group argument. The relative impact of each question and each group on the dependent variable is stored in the RelativeImpact list. Plots and tables are produced to examin the relative impacts.
+
+``` {r Find Relative Importance of Factors}
+
+
+RelativeImpacts<-mapply(FUN=calc.relimp,object=list(CovMatrices$Sales,CovMatrices$Research,CovMatrices$CorporateAccess),type="lmg",rela=TRUE)
+
+RelativeImpactsNoScalars<-mapply(FUN=calc.relimp,object=list(CovMatricesNoScalars$Sales,CovMatricesNoScalars$Research,CovMatricesNoScalars$CorporateAccess),type="lmg",rela=TRUE)
+
+RelativeImpactsNoScalarsCorpAccess<-mapply(FUN=calc.relimp,object=list(CovMaticesNoScalarsCorpAcc$Sales,CovMaticesNoScalarsCorpAcc$Research,CovMaticesNoScalarsCorpAcc$CorporateAccess),type="lmg",rela=TRUE)
+
+
+RelativeImpactsNoScalars[[4]]<-calc.relimp(object=CovMatricesNoScalars$AllVariables,type="lmg",rela=TRUE,groups=list(c(2:13),c(14:22),c(23:29)),groupnames=c("Sales","Research","Corporate Access"))
+
+#KeyDrivers<-rbind(RelativeImpacts[[4]]@lmg,RelativeImpacts[[1]]@lmg,RelativeImpacts[[2]]@lmg,RelativeImpacts[[3]]@lmg)
+
+```
+
+
+```{r Extract Impacts, Export to Excel and Create Graphs}
+
+```
+
+### Model Analysis
+
+```{r}
+CorrelationMatrix<-list(Sales="",Research="",CorporateAccess="")
+Compare.Sales<-merge(x=Sales,y=Correl$ByCol,all.x=TRUE)
+Compare.Sales<-Compare.Sales[order(abs(Compare.Sales$Correlations),decreasing=TRUE),]
+
+xyplot(Compare.Sales$RelativeImpact ~ Compare.Sales$Correlations, 
+   data = Compare.Sales,
+   pch=16,
+   col="blue",
+   cex=1,
+   strip=FALSE,
+   panel = function(x, y,...) {
+           panel.xyplot(x, y,...)
+           panel.text((x-.03),jitter(y),labels=Compare.Sales$Question)
+           }) 
+
+Compare.Sales
+CorrelationMatrix[["Sales"]]<-as.data.frame(cor(x=Data.Recoded$Columns[,c(57:71)],use="pairwise"))
+SalesCorrelations<-CorrelationMatrix[["Sales"]]
+
+write.csv(x=SalesCorrelations,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/SalesCorrelations.csv")
+
+#StandardizedData<-as.data.frame(scale(Data.Recoded$Columns[,58:71],center=TRUE,scale=TRUE))
+
+```
+
+```{r}
+Compare.Research<-merge(x=Research,y=Correl$ByCol,all.x=TRUE)
+Compare.Research<-Compare.Research[order(abs(Compare.Research$Correlations),decreasing=TRUE),]
+
+xyplot(Compare.Research$RelativeImpact ~ Compare.Research$Correlations, 
+   data = Compare.Research,
+   strip=FALSE,
+   pch=16,
+   col="blue",
+   panel = function(x, y,...) {
+           panel.xyplot(x, y,...)
+           panel.text((x-0.01),(y+0.005),labels=Compare.Research$Question)
+           }) 
+
+Compare.Research
+CorrelationMatrix[["Research"]]<-as.data.frame(cor(x=Data.Recoded$Columns[,c(57,72:81)],use="pairwise"))
+
+ResearchCorrelations<-CorrelationMatrix[["Research"]]
+
+write.csv(x=ResearchCorrelations,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/ResearchCorrelations.csv")
+
+#Add standardized data here
+```
+
+```{r}
+Compare.CorporateAcess<-merge(x=CorporateAccess,y=Correl$ByCol,all.x=TRUE)
+Compare.CorporateAcess<-Compare.CorporateAcess[order(abs(Compare.CorporateAcess$Correlations),decreasing=TRUE),]
+
+xyplot(Compare.CorporateAcess$RelativeImpact ~ Compare.CorporateAcess$Correlations, 
+   data = Compare.CorporateAcess,
+   strip=FALSE,
+   pch=16,
+   col="blue",
+   panel = function(x, y,...) {
+           panel.xyplot(x, y,...)
+           panel.text((x-0.01),(y+0.008),labels=Compare.CorporateAcess$Question)
+           }) 
+
+Compare.CorporateAcess
+CorrelationMatrix[["CorporateAccess"]]<-as.data.frame(cor(x=Data.Recoded$Columns[,c(57,82:88)],use="pairwise"))
+CorporateAccessCorrelations<-CorrelationMatrix[["CorporateAccess"]]
+write.csv(x=CorporateAccessCorrelations,file="C:/Users/mwilliams/Desktop/KeyDrivers/DataFiles/CorporateAccessCorrelations.csv")
+
+```
+
+```{r Create constructs to estimate overall impact of each factor}
+StandardizedData<-as.data.frame(scale(Data.Recoded$Columns[,c(59:64,66:71,73:88)],center=TRUE,scale=TRUE))
+
+
+
+write.csv(x=StandardizedData,file="./StandardizedData10.9.14.csv")
+
+SalesConstruct<-CreateComponent(DataFrame=StandardizedData[,c(1:12)],Columns=c(1:12),ColumnWeights=RelativeImpactsNoScalars[[1]]@lmg)
+
+write.csv(x=SalesConstruct,file="./SalesConstruct10.9.14.csv")
+
+ResearchConstruct<-CreateComponent(DataFrame=StandardizedData[,c(13:21)],Columns=c(1:9),ColumnWeights=RelativeImpactsNoScalars[[2]]@lmg)
+
+write.csv(x=ResearchConstruct,file="./ResearchConstruct10.9.14.csv")
+
+CorporateAccessConstruct<-CreateComponent(DataFrame=StandardizedData[,c(22:28)],Columns=c(1:7),ColumnWeights=RelativeImpactsNoScalars[[3]]@lmg)
+
+write.csv(x=CorporateAccessConstruct,file="./CorporateAccessConstruct10.9.14.csv")
+
+Constructs<-cbind(Data.Recoded$Columns[,c(1:10,57)],SalesConstruct$AdjustedData,ResearchConstruct$AdjustedData,CorporateAccessConstruct$AdjustedData)
+
+write.csv(x=Constructs,file="./Constructs10.9.14.csv")
+
+
+CovMatricesConstructs<-cov(Constructs[,c(11:14)], use="pairwise")
+RelativeImpactsConstructs<-calc.relimp(CovMatricesConstructs,type="lmg",rela=TRUE)
+
+Constructs<-names(RelativeImpactsConstructs@lmg)
+ImpactConstructs<-RelativeImpactsConstructs@lmg
+plot(RelativeImpactsConstructs)
+
+
+
+```
+
+
+
+
+```{r Create GQIs Using Constructs}
+GQI<-list(Sales="",Research="",CorporateAccess="")
+GQI[[1]]<-scale(Constructs[,12],center = TRUE,scale = TRUE)
+GQI[[2]]<-scale(Constructs[,13],center=TRUE,scale=TRUE)
+GQI[[3]]<-scale(Constructs[,14],center=TRUE,scale=TRUE)
+
+GQI[[1]]<-(GQI[[1]]*166)+500
+GQI[[2]]<-(GQI[[2]]*166)+500
+GQI[[3]]<-(GQI[[3]]*166)+500
+
+summary(cut(GQI[[1]],breaks = 10))
+summary(cut(GQI[[2]],breaks = 10))
+summary(cut(GQI[[3]],breaks = 10))
+
+plot(cut(GQI[[1]],breaks = 10))
+plot(cut(GQI[[2]],breaks = 10))
+plot(cut(GQI[[3]],breaks = 10))
+
+```
+
+## Function & Variable Definitions
+This section serves as reference for the fuctions and variables used throughout the process.
+
+### Function Definitions
+
+
+### Variable Definitions
+The first column corresponds to the position of the variable in the original csv file. The second and third coluns contain the names and data types of each variable.
+
+Position |Variable Name |Data Type
+---------|--------------|----------
+1      |     Year   |   integer
+2      | Facility   |    factor
+3      |  Program   |    factor
+4      |    Study   |    factor
+5      |CompanyID   |   integer
+6      |  Company   |    factor
+7      |ContactID   |   integer
+8      |  Contact   |    factor
+9      | BrokerID   |   integer
+10     |BrokerName  |     factor
+11     |     Q1_1   |   numeric
+12     |     Q1_2   |   numeric
+13     |     Q1_3   |   numeric
+14     |     Q1_4   |   numeric
+15     |     Q1_5   |   numeric
+16     |     Q1_6   |   numeric
+17     |     Q1_7   |   numeric
+18     |     Q1_8   |   numeric
+19     |     Q1_9   |   numeric
+20     |    Q2A_1   |   numeric
+21     |    Q2A_2   |   numeric
+22     |    Q2A_3   |   numeric
+23     |    Q2B_1   |   numeric
+24     |    Q2B_2   |   numeric
+25     |    Q2B_3   |   numeric
+26     |    Q2B_4   |   numeric
+27     |    Q2B_5   |   numeric
+28     |    Q2B_6   |   numeric
+29     |    Q2B_7   |   numeric
+30     |    Q2B_8   |   numeric
+31     |    Q2B_9   |   numeric
+32     |   Q2B_10   |   numeric
+33     |   Q3v1_1   |   numeric
+34     |   Q3v1_2   |   numeric
+35     |   Q3v1_3   |   numeric
+36     |   Q3v1_4   |   numeric
+37     |   Q3v2_1   |   numeric
+38     |   Q3v2_2   |   numeric
+39     |   Q3v2_3   |   numeric
+40     |   Q3v2_4   |   numeric
+41     |   Q3v2_5   |   numeric
+42     |    Q4A_1   |   numeric
+43     |    Q4A_2   |   numeric
+44     |    Q4A_3   |   numeric
+45     |    Q4A_4   |   numeric
+46     |    Q4A_5   |   numeric
+47     |    Q4A_6   |   numeric
+48     |    Q4A_7   |   numeric
+49     |    Q4B_1   |   numeric
+50     |    Q4B_2   |   numeric
+51     |    Q4B_3   |   numeric
+52     |    Q4B_4   |   numeric
+53     |      Q5A   |   numeric
+54     |    Q5B_1   |   numeric
+55     |    Q5B_2   |   numeric
+56     |    Q5B_3   |   numeric
+57     |      Q6A   |   integer
+58     |       Q7   |   numeric
+59     |      Q8A   |   numeric
+60     |      Q8B   |   numeric
+61     |      Q8C   |   numeric
+62     |      Q8D   |   numeric
+63     |      Q8E   |   numeric
+64     |      Q8F   |   numeric
+65     |      Q8G   |   numeric
+66     |      Q9A   |    numeric
+67     |      Q9B   |   numeric
+68     |      Q9C   |   numeric
+69     |      Q9D   |   numeric
+70     |      Q9F   |   numeric
+71     |      Q9E   |   numeric
+72     |      Q10   |   numeric
+73     |     Q11A   |   numeric
+74     |     Q11B   |   numeric
+75     |     Q11C   |   numeric
+76     |     Q11D   |   numeric
+77     |     Q11E   |   numeric
+78     |     Q11F   |   numeric
+79     |     Q11G   |   numeric
+80     |     Q11H   |   numeric
+81     |     Q11I   |   numeric
+82     |      Q12   |   numeric
+83     |      Q13   |   integer
+84     |     Q14A   |   numeric
+85     |     Q14B   |   numeric
+86     |     Q14C   |   numeric
+87     |     Q14D   |   numeric
+88     |     Q14E   |   numeric
+89     |    Q16_1   |   numeric
+90     |    Q16_2   |   numeric
+91     |    Q17_1   |   numeric
+92     |    Q17_2   |   numeric
+93     |   QRec_1   |   numeric
+94     |   QRec_2   |   numeric
+95     |   QAbr_1   |   numeric
+96     |   QAbr_2   |   numeric
+97     |  QTYPE_1   |   numeric
+98     |  QTYPE_2   |   numeric
+99     |  QTYPE_3   |   numeric
+100    |  QTYPE_4   |   numeric
+101    |  QTYPE_5   |   numeric
+102    |  QTYPE_6   |   numeric
