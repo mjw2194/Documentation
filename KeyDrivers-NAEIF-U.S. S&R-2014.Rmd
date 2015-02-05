@@ -27,7 +27,7 @@ This file documents the process used to model the key drivers of recognition for
 Processing Data
 ===========================================================
 ### Getting the Raw Data
-The raw data was obtained via the SPSS Report using Business Objects <Version>. <OUtline process for running SPSS Reports and appending several columns for year, facility, program, etc. >
+The raw data was obtained via the SPSS Report using Business Objects <Version>. <OUtline process for running SPSS Reports and appending several columns for year, facility, program, etc.> 
 
 ### Loading Data
 Set the appropriate working directory, define the name of the file and load the functions in the "DataWrangling.R" file. In this case, I set the working directory to be the location of the data files. Ideally, we would want to dermine the data type (integer, numeric, factor, character, etc.) for each variable ahead of time via the "read.csv()" function's colClasses argument. Doing so will make it eaiser and faster for R to load the data. However, due to the fact that some variables include character strings (e.g., "#MULTIVALUE", etc.) Defining those variables as numeric usually causes R to throw an error. Instead, we will define the variable types after loading the data. WARNING: This introduces some subtle, but significant issues. R will code some variables as a factor (e.g., overall research/advisory rank, etc.). Special care has to be taken when converting the factor to a numeric or integer variable (see the Recodeding Variables section). Lastly, I've created serveral functions that make data manipulations eaiser. The functions are saved in the "DataWrangling.R" file, which needs to be loaded into R via the source() function.
@@ -40,7 +40,7 @@ source("./DataWrangling.R")
 library(relaimpo,quietly=TRUE)
 ```
 
-Next, we load the data into R using the read.csv() function. If the file is in annother format, a different function will be needed (e.g, read.frame(), etc). I've also set all NA's equal to 0's using the is.na() function. Later, we will need to convert some 0's back to NAs (e.g., Pick 2/3's). We will also need to recode some variables as negatives (e.g., negative-oriented pick 2/3's and ranking questions). Becuase there are so many variables, I've chosen not to look at the structure of the data frame using the str() function. Instead, I will document the some properties of the data including the original and final number of observations, the the column number associated with each variable and orignal and final data type of each variable. I will also include a description of each variable. The resulting dataset is named "Data". 
+Next, we load the data into R using the read.csv() function. If the file is in annother format, a different function will be needed (e.g, read.frame(), read.xlsx etc). I've also set all NA's equal to 0's using the is.na() function. Later, we will need to convert some 0's back to NAs (e.g., Pick 2/3's). We will also need to recode some variables as negatives (e.g., negative-oriented pick 2/3's and ranking questions). Becuase there are so many variables, I've chosen not to look at the structure of the data frame using the str() function. Instead, I will document the some properties of the data including the original and final number of observations, the the column number associated with each variable and orignal and final data type of each variable. I will also include a description of each variable. The resulting dataset is named "Data". 
 
 ```{r LoadingData_Read,}
 Data<-read.csv(FileName,strip.white=TRUE)
@@ -48,7 +48,7 @@ Data[is.na(Data)]<-0
 ```
 
 ### Removing Problematic Observations
-This is the first point where we will use functions stored in the "DataWrangling.R" file. The RemoveRows() function removes problematic observations. (e.g., rows with BrokerIDs equal to -2 or -10,000, #MULTIVALUE and 99). This function requires a list of columns to check as well as the values that should be removed. RemoveRows() returns a list with two elements. The first element Data.RmRows is the edited data frame. The second element NumRows records the number of observations after checking each column for the values provided.
+This is the first point where we will use functions stored in the "DataWrangling.R" file. The RemoveRows() function removes problematic observations. (e.g., rows with BrokerIDs equal to -2 or -10,000, #MULTIVALUE and 99). This function requires a list of columns to check as well as the values that should be removed. RemoveRows() returns a list with two elements. The first element returned by RemoveRows is the edited data frame. The second element returned by RemoveRows is NumRows which records the number of observations after checking each column for the values provided.
 
 ```{r LoadingData_RemoveErrors,}
 Edited<-RemoveRows(DataFrame=Data,Columns=c(9,57,82,83),ColumnNames=c("Column 9","Column 57", "Column 82", "Column 83"),Values=c(-2,-10000, 99,"#MULTIVALUE"))
@@ -63,11 +63,11 @@ Edited$NumRows
 ### Recoding Competitive Variables
 
 #### Recoding Factor Variables
-First, we need to change the data type of a few variables. WARNING: Variables representing ranking/penetration questions seem to be the most problematic. As mentioned earlier, some variables are coded as factors by R when we write data using the read.csv() function. This may not be appropriate. A common case is the ranking/penetration questions. Because the ranking/penetration variabes contain "#MULTIVALUES", R codes them as factors instead of integers. 
+First, we need to change the data type of a few variables. WARNING: Variables representing ranking/penetration questions seem to be the most problematic. As mentioned earlier, some variables are coded as factors, which are categorical, by R rather than numerical. This may not be appropriate. The ranking/penetration questions represent a good example. The ranking/penetration variabes contain "#MULTIVALUES", which causes R to code them as factors instead of numeric values. 
 
-Recoding a variable from a factor to an integer is tricky. R will return the integer value of the level associated with each datapoint. For example, if "#MULTIVALUE" is the first element of a varaible to be loaded, "MULTIVALUE" is the first level of the factor and is treated like the integer 1. If "10" is the second element of a variable to be loaded into R, "10" is the second level of the factor and is treated like the integer 2. 
+Recoding a variable from a factor to an integer is tricky. R will return the integer value of the level associated with each factor. For example, if "#MULTIVALUE" is the first element of a varaible V1 loaded into R, "MULTIVALUE" is the first level of the factor and is treated like the integer 1. If "10" is the second element of V1 loaded into R, "10" is the second level of the factor and is treated like the integer 2. 
 
-The below code converts the levels to integers and then sets the value of the variable to be equatl to the level label. I've also recoded blanks to 0's , which we will recoded later. Next, we have to recode the data so that a #1 ranking is larger than a #10 ranking and any erroneous values are removed or recoded as NA. the RecodeRank() function recodes the data correspondign to the ranking/penetration questions. Lastly, I printed the finalized data frame afterwards so the user can see what the end results are. The data frame is obtained from the list of objects returned by the RemoveRows() function. The edited data frame is named "Data.RmRows".
+The below code converts the levels to integers and then sets the value of the variable to be equal to the level label. I've also recoded blanks to 0's , which we will recoded later. Next, we have to recode the data so that a #1 ranking is larger than a #10 ranking and any erroneous values are removed or recoded as NA. The RecodeRank() function recodes the data corresponding to the ranking/penetration questions. Lastly, I printed the finalized data frame so the user can see the end result. The data frame is obtained from the list of objects returned by the RemoveRows() function. The edited data frame is named "Data.RmRows".
 
 
 ```{r Recode Factors as Integers}
@@ -143,7 +143,7 @@ Data.RmRows[1:10, c(7,9,57,58,59,64,72,82,83,88)]
 
 
 #### Recoding Pick 2/3's
-Pick 2/3 values are originally 1 or NA. We need to try to distinguish whether or not the NA indicates that the portfolio manager has a view, or if he/she did not answer the question. If the portfolio manager has a view, we should treat the NA as 0. If they he/she did not answer the question, we should leave the NA as is. When determining if the portfolio manager has a view, we can determine if he/she cited any brokers for that particular question. We can also determine if he/she answered any question within a block of similar questions. The functions below, stored in the "DataWranging.R" file, take the edited data frame and recode observations as NA's based on a set of conditions. The results are stored in a list named "Data.Recoded", which has elements "Columns", "Groups" and "Mixed". Note that a 1 in a negative-oriented questions like "Which 3 or 4 firms had disrutptive sales professional turnover?" are recoded to -1.
+Pick 2/3 values are originally 1 or NA. We need to distinguish whether NA's indicate that the portfolio manager has a view. If the portfolio manager has a view, we should treat the NA as 0. If they he/she does not have a view, we should leave the NA as is. Unless the PM didn't cite anyone, we will assume that he/she does not have a view for that particular question. The functions below, stored in the "DataWranging.R" file, take the edited data frame and recode observations as NA's based on a set of conditions. The results are stored in a list named "Data.Recoded", which has elements "Columns", "Groups" and "Mixed". Note that negative questions like "Which 3 or 4 firms had disrutptive sales professional turnover?" are recoded to -1.
 
 ```{r Recoding Negative Picks so Mentions are Coded as -1}
 Data.RmRows[,64]<--Data.RmRows[,64]
